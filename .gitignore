@@ -1,0 +1,10 @@
+.svn
+.sass-cache
+node_modules
+.idea
+Dockerfile
+docker-compose.yml
+.vs
+.vscode
+.DS_Store
+*.map

@@ -1,0 +1,19 @@
+{
+	"private": true,
+	"scripts": {
+		"start": "wp-scripts start",
+		"build": "wp-scripts build",
+		"build:assets": "wp-scripts build --config-name assets",
+		"build:wp": "wp-scripts build --config-name blocks"
+	},
+	"devDependencies": {
+		"@wordpress/babel-preset-default": "^8.44.0",
+		"@wordpress/scripts": "^32.0.0",
+		"bootstrap-sass": "^3.4.0",
+		"css-minimizer-webpack-plugin": "^8.0.0",
+		"mark.js": "^8.11.1",
+		"sass": "^1.56.1",
+		"sass-loader": "^12.6.0",
+		"timepicker": "^1.13.15"
+	}
+}
