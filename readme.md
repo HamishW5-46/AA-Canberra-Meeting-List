@@ -1,57 +1,11 @@
-# 12 Step Meeting List
+# AA Canberra Meeting List
 
-This plugin is designed to help recovery programs (AA, NA, Al-Anon, etc) list their meetings. It standardizes addresses, and displays in a list or map.
+This plugin is a customised version of Twelve Step Meeting List, developed by Code4Recoery
 
-The best way to install this plugin is via [its home page](https://wordpress.org/plugins/12-step-meeting-list/) in the WordPress Plugin Directory.
+Version: 3.19.12-aacanberra.1
 
-## Support
+Requires PHP: 5.6
 
-Have a question? Check out our [Frequently Asked Questions](https://wordpress.org/plugins/12-step-meeting-list/#faq-header).
+Author: Hamish Wright
 
-Need help? Please [open a new discussion](https://github.com/code4recovery/12-step-meeting-list/discussions).
-
-## How can I report security bugs?
-
-To report a security issue, please use the [Security Tab](https://github.com/code4recovery/12-step-meeting-list/security), located under the repository name. If you cannot see the "Security" tab, select the ... dropdown menu, and then click Security. Please include as much information as possible, including steps to help our team recreate the issue.
-
-## Helping with Development
-
-Do you want to help develop the plugin? We welcome new members! Please find out more at [code4recovery.org](https://code4recovery.org). See the [development setup guide](./CONTRIBUTING.md) for local setup instructions.
-
-## Coding Suggestions
-
-These help improve code readability and maintainability:
-
-- Use extensions like [DevSense](https://www.devsense.com) and [Prettier](https://prettier.io/) to format code on save
-- Use the [Query Monitor WordPress plugin](https://wordpress.org/plugins/query-monitor/) locally to detect and fix any PHP warnings
-- All constants, global functions, and global variables should have a name starting with `tsml_`
-- Functions ought to be useful in multiple places (except functions that are available to end users such as `tsml_custom_types`)
-- Use anonymous functions when possible (we are PHP 5.6+)
-- Use bracket syntax for arrays (we are PHP 5.6+)
-- We are [PSR-12 compliant](https://www.php-fig.org/psr/psr-12/)
-
-Also some best practices:
-
-- Don't leave code commented out (if it's needed later we can find it in the git history)
-- Don't put database updates or other expensive operations inside a repeat loop
-- No unused variables
-- Filter inputs
-
-## Compiling Assets
-
-If you're making changes to JavaScript or CSS, run `npm install` once to install dependencies. Then, while developing,
-run `npm start` to compile assets as you make changes. When you are ready to make a pull request, run `npm run build`.
-
-## Rebuilding the POT file
-
-To support other languages, the plugin wraps output language with:
-
-```php
-echo __('English message', '12-step-meeting-list')
-```
-
-To update the `./languages/12-step-meeting-list.pot` file, install [WP Cli](https://make.wordpress.org/cli/handbook/guides/installing/) and run:
-
-```bash
-wp i18n make-pot . ./languages/12-step-meeting-list.pot --exclude=assets/
-```
+Orignal Repo URI: https://github.com/code4recovery/12-step-meeting-list
