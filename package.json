@@ -4,7 +4,9 @@
 		"start": "wp-scripts start",
 		"build": "wp-scripts build",
 		"build:assets": "wp-scripts build --config-name assets",
-		"build:wp": "wp-scripts build --config-name blocks"
+		"build:tsml-ui": "npm --prefix tools/tsml-ui run build:plugin",
+		"build:wp": "wp-scripts build --config-name blocks",
+		"build:tsml-ui:readable": "npm --prefix tools/tsml-ui run build:readable && node tools/copy-tsml-ui-build.js --unminified && npm run build:tsml-ui"
 	},
 	"devDependencies": {
 		"@wordpress/babel-preset-default": "^8.44.0",

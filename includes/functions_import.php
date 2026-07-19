@@ -842,6 +842,7 @@ function tsml_import_sanitize_meetings($meetings, $data_source_url = null, $data
         // preserve <br>s as line breaks if present, otherwise clean up
         $value = preg_replace('/\<br(\s*)?\/?\>/i', PHP_EOL, (string) $value);
         $value = stripslashes($value);
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $value = trim($value);
 
         // turn "string" into string (only do if on both ends though)

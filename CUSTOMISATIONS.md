@@ -20,11 +20,14 @@ This plugin is a local custom fork of Twelve Step Meeting List for AA Canberra u
 
 ## TSML UI Links
 
-- Added two public-facing printable meeting list links for the TSML UI.
-- The links are placed below the TSML UI search/filter controls.
+- Added two public-facing printable meeting list links for the TSML UI via the `AA_CANBERRA_TSML_UI_CUSTOM_LINKS` PHP constant.
+- The links are passed through `tsml_react_config.custom_links` and placed below the TSML UI search/filter controls.
+- Feedback notification emails and TSML UI mailto links render meeting links under the `AA_CANBERRA_TSML_UI_FEEDBACK_PUBLIC_ORIGIN` PHP constant.
 - The local `assets/js/app.js` enqueue uses the file modified time as its cache-busting version.
-- `assets/js/unminified_app.js` is the readable source for local TSML UI bundle edits.
-- `assets/js/app.js` was regenerated from `assets/js/unminified_app.js` using esbuild minification.
+- Real TSML UI source is bundled under `tools/tsml-ui`, pinned to upstream Code4Recovery commit `fef58db87ded610e1660fa246d48e374f11b54b5`.
+- Run `npm run build:tsml-ui` from WSL to rebuild `assets/js/app.js` and `assets/js/app.js.map`.
+- Run `npm run build:tsml-ui:readable` from WSL when `assets/js/unminified_app.js` also needs refreshing.
+- `assets/js/unminified_app.js` is a readable generated bundle for audit/debugging only; edit `tools/tsml-ui/src` instead.
 
 ## Meeting Admin Lock
 

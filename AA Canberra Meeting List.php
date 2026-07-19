@@ -4,12 +4,12 @@
  * Plugin Name: AA Canberra Meeting List
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Description: Customised version of Twelve Step Meeting List, developed by Code4Recoery
+ * Description: Customised version of Twelve Step Meeting List, originally developed by Code4Recoery
  * Version: 3.19.12-aacanberra.1
  * Requires PHP: 5.6
- * Author: Hamish
- * Author URI: https://github.com/code4recovery/12-step-meeting-list
- * Text Domain: 12-step-meeting-list
+ * Author: Hamish Wright
+ * Author URI: https://github.com/HamishW5-46/aa-canberra-meeting-list
+ * Text Domain: aa-canberra-meeting-list
  */
 
 // define constants
@@ -35,6 +35,21 @@ define('TSML_MEETINGS_PERMISSION', 'edit_posts');
 define('TSML_PATH', plugin_dir_path(__FILE__));
 define('TSML_SETTINGS_PERMISSION', 'manage_options');
 define('TSML_VERSION', '3.19.12');
+if (!defined('AA_CANBERRA_TSML_UI_FEEDBACK_PUBLIC_ORIGIN')) {
+    define('AA_CANBERRA_TSML_UI_FEEDBACK_PUBLIC_ORIGIN', 'https://meetings.aa.org.au');
+}
+if (!defined('AA_CANBERRA_TSML_UI_CUSTOM_LINKS')) {
+    define('AA_CANBERRA_TSML_UI_CUSTOM_LINKS', [
+        [
+            'label' => 'Printable Meetings List',
+            'url' => 'https://docs.google.com/document/d/1ovwL8Nq9_0uJOSprqpRSyhtGhLX4fVud',
+        ],
+        [
+            'label' => 'Updates to Printable Meetings List',
+            'url' => 'https://docs.google.com/document/d/1_L3nRk05VkgpauLz76vnCHnOr_RkqcVJ',
+        ],
+    ]);
+}
 
 // include these files first
 include TSML_PATH . '/includes/filter_meetings.php';

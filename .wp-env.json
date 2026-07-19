@@ -1,7 +1,0 @@
-{
-  "core": "WordPress/WordPress",
-  "plugins": ["."],
-  "port": 8890,
-  "testsPort": 8891,
-  "testsEnvironment": false
-}

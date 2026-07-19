@@ -210,6 +210,113 @@ add_action('wp_ajax_csv', function () {
     wp_die(wp_kses($return, []));
 });
 
+// function: receives React TSML UI meeting feedback modal submissions, sends email to admins
+add_action('wp_ajax_aa_canberra_meeting_feedback', 'aa_canberra_ajax_meeting_feedback');
+add_action('wp_ajax_nopriv_aa_canberra_meeting_feedback', 'aa_canberra_ajax_meeting_feedback');
+function aa_canberra_ajax_meeting_feedback()
+{
+    global $tsml_feedback_addresses;
+
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'aa_canberra_meeting_feedback')) {
+        wp_send_json_error(['message' => __('Security check failed. Please refresh the page and try again.', 'aa-canberra-meeting-list')], 403);
+    }
+
+    $loaded_at = isset($_POST['loaded_at']) ? intval($_POST['loaded_at']) : 0;
+    if ($loaded_at && (time() - $loaded_at) < 3) {
+        wp_send_json_error(['message' => __('Please try again in a moment.', 'aa-canberra-meeting-list')], 429);
+    }
+
+    if (!empty($_POST['website'])) {
+        wp_send_json_success(['message' => __('Thank you for your feedback.', 'aa-canberra-meeting-list')]);
+    }
+
+    $requester_name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+    $requester_email = isset($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : '';
+    $requester_phone = isset($_POST['phone']) ? sanitize_text_field(wp_unslash($_POST['phone'])) : '';
+    $feedback_message = isset($_POST['message']) ? trim(tsml_sanitize_text_area(wp_unslash($_POST['message']))) : '';
+    $meeting_slug = isset($_POST['meeting_slug']) ? sanitize_title(wp_unslash($_POST['meeting_slug'])) : '';
+    $meeting_name = isset($_POST['meeting_name']) ? sanitize_text_field(wp_unslash($_POST['meeting_name'])) : '';
+    $meeting_url = isset($_POST['meeting_url']) ? esc_url_raw(wp_unslash($_POST['meeting_url'])) : '';
+    $meeting_time = isset($_POST['meeting_time']) ? sanitize_text_field(wp_unslash($_POST['meeting_time'])) : '';
+    $meeting_location = isset($_POST['meeting_location']) ? sanitize_text_field(wp_unslash($_POST['meeting_location'])) : '';
+    $meeting_address = isset($_POST['meeting_address']) ? sanitize_text_field(wp_unslash($_POST['meeting_address'])) : '';
+    $meeting_region = isset($_POST['meeting_region']) ? sanitize_text_field(wp_unslash($_POST['meeting_region'])) : '';
+
+    if (!$requester_name || !is_email($requester_email) || !$feedback_message || !$meeting_slug) {
+        wp_send_json_error(['message' => __('Please complete the required fields.', 'aa-canberra-meeting-list')], 400);
+    }
+
+    if (strlen($requester_name) > 120 || strlen($requester_email) > 254 || strlen($requester_phone) > 80 || strlen($feedback_message) > 5000) {
+        wp_send_json_error(['message' => __('One or more fields is too long.', 'aa-canberra-meeting-list')], 400);
+    }
+
+    $meeting_post = get_page_by_path($meeting_slug, OBJECT, 'tsml_meeting');
+    if (!$meeting_post && preg_match('/-\d$/', $meeting_slug)) {
+        $meeting_post = get_page_by_path(preg_replace('/-\d$/', '', $meeting_slug), OBJECT, 'tsml_meeting');
+    }
+
+    if ($meeting_post) {
+        $meeting = tsml_get_meeting($meeting_post->ID);
+        if (!$meeting_name) {
+            $meeting_name = html_entity_decode($meeting->post_title, ENT_QUOTES);
+        }
+        if (!$meeting_url) {
+            $meeting_url = tsml_feedback_public_permalink($meeting->ID);
+        }
+        if (!$meeting_time && isset($meeting->day, $meeting->time)) {
+            $meeting_time = tsml_format_day_and_time($meeting->day, $meeting->time);
+        }
+        if (!$meeting_location && !empty($meeting->location)) {
+            $meeting_location = html_entity_decode($meeting->location, ENT_QUOTES);
+        }
+        if (!$meeting_address && !empty($meeting->formatted_address)) {
+            $meeting_address = html_entity_decode($meeting->formatted_address, ENT_QUOTES);
+        }
+        if (!$meeting_region && !empty($meeting->region)) {
+            $meeting_region = html_entity_decode($meeting->region, ENT_QUOTES);
+        }
+    }
+
+    $to_email_addresses = $tsml_feedback_addresses;
+    if (!empty($meeting) && !empty($meeting->data_source) && !empty($meeting->feedback_emails)) {
+        $to_email_addresses = $meeting->feedback_emails;
+    }
+    if (is_string($to_email_addresses)) {
+        $to_email_addresses = explode(',', $to_email_addresses);
+    }
+    $to_email_addresses = array_map('trim', (array) $to_email_addresses);
+    $to_email_addresses = array_values(array_filter($to_email_addresses, 'is_email'));
+
+    if (empty($to_email_addresses)) {
+        wp_send_json_error(['message' => __('Feedback is not configured. Please contact the site administrator.', 'aa-canberra-meeting-list')], 500);
+    }
+
+    $message = '<p style="padding-bottom: 20px; border-bottom: 2px dashed #ccc; margin-bottom: 20px;">' . nl2br(esc_html($feedback_message)) . '</p>';
+    $message_lines = [
+        __('Requested By', '12-step-meeting-list') => esc_html($requester_name) . ' &lt;<a href="mailto:' . esc_attr($requester_email) . '">' . esc_html($requester_email) . '</a>&gt;',
+        __('Phone', '12-step-meeting-list') => $requester_phone ? esc_html($requester_phone) : '',
+        __('Meeting', '12-step-meeting-list') => $meeting_url ? '<a href="' . esc_url($meeting_url) . '">' . esc_html($meeting_name) . '</a>' : esc_html($meeting_name),
+        __('When', '12-step-meeting-list') => esc_html($meeting_time),
+        __('Location', '12-step-meeting-list') => esc_html($meeting_location),
+        __('Address', '12-step-meeting-list') => esc_html($meeting_address),
+        __('Region', '12-step-meeting-list') => esc_html($meeting_region),
+        __('Slug', 'aa-canberra-meeting-list') => esc_html($meeting_slug),
+    ];
+
+    foreach (array_filter($message_lines) as $key => $value) {
+        $message .= '<p>' . esc_html($key) . ': ' . $value . '</p>';
+    }
+
+    $subject = __('Meeting Feedback Form', '12-step-meeting-list') . ': ' . ($meeting_name ?: $meeting_slug);
+    if (tsml_email($to_email_addresses, $subject, $message, $requester_name . ' <' . $requester_email . '>')) {
+        wp_send_json_success(['message' => __('Thank you. Your update request has been sent.', 'aa-canberra-meeting-list')]);
+    }
+
+    global $phpmailer;
+    $error = !empty($phpmailer->ErrorInfo) ? $phpmailer->ErrorInfo : __('An error occurred while sending email.', 'aa-canberra-meeting-list');
+    wp_send_json_error(['message' => $error], 500);
+}
+
 // function: receives user feedback, sends email to admin
 // used:		single-meetings.php
 add_action('wp_ajax_tsml_feedback', 'tsml_ajax_feedback');

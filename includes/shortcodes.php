@@ -158,8 +158,10 @@ function tsml_ui($arguments = [])
     }
 
     // enqueue app script
+    $local_js_path = plugin_dir_path(__FILE__) . '../assets/js/app.js';
     $js = defined('TSML_UI_PATH') ? TSML_UI_PATH : plugins_url('../assets/js/app.js', __FILE__);
-    wp_enqueue_script('tsml_ui', $js, [], TSML_VERSION, ['in_footer' => true, 'strategy' => 'async']);
+    $js_version = defined('TSML_UI_PATH') || !file_exists($local_js_path) ? TSML_VERSION : filemtime($local_js_path);
+    wp_enqueue_script('tsml_ui', $js, [], $js_version, ['in_footer' => true, 'strategy' => 'async']);
 
     // get program types and type descriptions
     $types = !empty($tsml_programs[$tsml_program]['types'])
@@ -178,8 +180,19 @@ function tsml_ui($arguments = [])
                 'columns' => array_keys($tsml_columns),
                 'defaults' => $defaults,
                 'conference_providers' => $tsml_conference_providers,
+                'custom_links' => defined('AA_CANBERRA_TSML_UI_CUSTOM_LINKS')
+                    ? array_values(AA_CANBERRA_TSML_UI_CUSTOM_LINKS)
+                    : [],
                 'distance_unit' => $tsml_distance_units,
                 'feedback_emails' => array_values($tsml_feedback_addresses),
+                'feedback_form' => [
+                    'action' => 'aa_canberra_meeting_feedback',
+                    'endpoint' => admin_url('admin-ajax.php'),
+                    'nonce' => wp_create_nonce('aa_canberra_meeting_feedback'),
+                ],
+                'feedback_public_origin' => defined('AA_CANBERRA_TSML_UI_FEEDBACK_PUBLIC_ORIGIN')
+                    ? AA_CANBERRA_TSML_UI_FEEDBACK_PUBLIC_ORIGIN
+                    : '',
                 'flags' => $tsml_programs[$tsml_program]['flags'],
                 'language' => $defaults['language'],
                 'strings' => [

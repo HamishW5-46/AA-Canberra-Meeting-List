@@ -1,0 +1,3 @@
+[submodule "tools/tsml-ui"]
+	path = tools/tsml-ui
+	url = https://github.com/HamishW5-46/TSML-UI.git
