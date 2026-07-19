@@ -24244,6 +24244,7 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 		feedback_sending: "Sending...",
 		feedback_submit: "Send update request",
 		feedback_success: "Thank you. Your update request has been sent.",
+		feedback_turnstile_error: "Please complete the security check.",
 		get_directions: "Get Directions",
 		in_progress_single: "1 meeting in progress",
 		in_progress_multiple: "%count% meetings in progress",
@@ -24358,6 +24359,7 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 		feedback_sending: "Sending...",
 		feedback_submit: "Send update request",
 		feedback_success: "Thank you. Your update request has been sent.",
+		feedback_turnstile_error: "Please complete the security check.",
 		feedback: "Actualizar la información de la reunión",
 		get_directions: "Obtener las direcciones",
 		in_progress_single: "1 reunión en curso",
@@ -24473,6 +24475,7 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 		feedback_sending: "Sending...",
 		feedback_submit: "Send update request",
 		feedback_success: "Thank you. Your update request has been sent.",
+		feedback_turnstile_error: "Please complete the security check.",
 		feedback: "Mettre à jour les informations sur la réunion",
 		get_directions: "Obtenir des itinéraires",
 		in_progress_single: "1 réunion en cours",
@@ -24588,6 +24591,7 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 		feedback_sending: "Sending...",
 		feedback_submit: "Send update request",
 		feedback_success: "Thank you. Your update request has been sent.",
+		feedback_turnstile_error: "Please complete the security check.",
 		feedback: "ミーティング情報の更新",
 		get_directions: "行き方を調べる",
 		in_progress_single: "1件のミーティングが進行中です",
@@ -24703,6 +24707,7 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 		feedback_sending: "Sending...",
 		feedback_submit: "Send update request",
 		feedback_success: "Thank you. Your update request has been sent.",
+		feedback_turnstile_error: "Please complete the security check.",
 		feedback: "Update Meeting Info",
 		get_directions: "Krijg Routebeschrijving",
 		in_progress_single: "1 meeting bezig",
@@ -24818,6 +24823,7 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 		feedback_sending: "Sending...",
 		feedback_submit: "Send update request",
 		feedback_success: "Thank you. Your update request has been sent.",
+		feedback_turnstile_error: "Please complete the security check.",
 		feedback: "Atualizar Informações da Reunião",
 		get_directions: "Obter Direcções",
 		in_progress_single: "1 reunião em progresso",
@@ -24933,6 +24939,7 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 		feedback_sending: "Sending...",
 		feedback_submit: "Send update request",
 		feedback_success: "Thank you. Your update request has been sent.",
+		feedback_turnstile_error: "Please complete the security check.",
 		feedback: "Aktualizovať informácie o stretnutí",
 		get_directions: "Zobraziť trasu",
 		in_progress_single: "1 stretnutie práve prebieha",
@@ -25048,6 +25055,7 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 		feedback_sending: "Sending...",
 		feedback_submit: "Send update request",
 		feedback_success: "Thank you. Your update request has been sent.",
+		feedback_turnstile_error: "Please complete the security check.",
 		feedback: "Uppdatera Mötesinformation",
 		get_directions: "Få Vägbeskrivning",
 		in_progress_single: "1 möte pågår",
@@ -25163,6 +25171,7 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 		feedback_sending: "Sending...",
 		feedback_submit: "Send update request",
 		feedback_success: "Thank you. Your update request has been sent.",
+		feedback_turnstile_error: "Please complete the security check.",
 		feedback: "อัปเดตข้อมูลการประชุม",
 		get_directions: "ขอเส้นทาง",
 		in_progress_single: "กำลังประชุมอยู่ 1 รายการ",
@@ -27334,20 +27343,47 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 	}
 	//#endregion
 	//#region src/components/FeedbackModal.tsx
+	var turnstileScriptPromise;
+	function loadTurnstileScript() {
+		if (window.turnstile) return Promise.resolve();
+		if (turnstileScriptPromise) return turnstileScriptPromise;
+		turnstileScriptPromise = new Promise((resolve, reject) => {
+			const existing = document.getElementById("cf-turnstile-script");
+			if (existing) {
+				existing.addEventListener("load", () => resolve(), { once: true });
+				existing.addEventListener("error", () => reject(/* @__PURE__ */ new Error()), { once: true });
+				return;
+			}
+			const script = document.createElement("script");
+			script.id = "cf-turnstile-script";
+			script.async = true;
+			script.defer = true;
+			script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+			script.addEventListener("load", () => resolve(), { once: true });
+			script.addEventListener("error", () => reject(/* @__PURE__ */ new Error()), { once: true });
+			document.head.appendChild(script);
+		});
+		return turnstileScriptPromise;
+	}
 	function FeedbackModal({ meeting, meetingTime, onClose, open }) {
 		const { settings, strings } = useSettings();
 		const [error, setError] = (0, import_react.useState)();
 		const [loadedAt, setLoadedAt] = (0, import_react.useState)(Math.floor(Date.now() / 1e3));
 		const [sending, setSending] = (0, import_react.useState)(false);
 		const [sent, setSent] = (0, import_react.useState)(false);
+		const [turnstileToken, setTurnstileToken] = (0, import_react.useState)("");
 		const firstInput = (0, import_react.useRef)(null);
+		const turnstileContainer = (0, import_react.useRef)(null);
+		const turnstileWidget = (0, import_react.useRef)();
 		const publicUrl = settings.feedback_public_origin ? `${settings.feedback_public_origin.replace(/\/$/, "")}/${meeting.slug}` : meeting.url ?? window.location.href;
+		const turnstileSiteKey = settings.feedback_form?.turnstile_site_key;
 		(0, import_react.useEffect)(() => {
 			if (!open) return;
 			setError(void 0);
 			setLoadedAt(Math.floor(Date.now() / 1e3));
 			setSending(false);
 			setSent(false);
+			setTurnstileToken("");
 			setTimeout(() => firstInput.current?.focus(), 0);
 			const onKeyDown = (event) => {
 				if (event.key === "Escape") onClose();
@@ -27355,14 +27391,49 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 			document.addEventListener("keydown", onKeyDown);
 			return () => document.removeEventListener("keydown", onKeyDown);
 		}, [onClose, open]);
+		(0, import_react.useEffect)(() => {
+			if (!open || !turnstileSiteKey) return;
+			let cancelled = false;
+			setTurnstileToken("");
+			loadTurnstileScript().then(() => {
+				if (cancelled || !turnstileContainer.current || !window.turnstile) return;
+				turnstileWidget.current = window.turnstile.render(turnstileContainer.current, {
+					callback: (token) => setTurnstileToken(token),
+					"error-callback": () => {
+						setTurnstileToken("");
+						setError(strings.feedback_turnstile_error);
+					},
+					"expired-callback": () => setTurnstileToken(""),
+					sitekey: turnstileSiteKey,
+					theme: "auto"
+				});
+			}).catch(() => setError(strings.feedback_turnstile_error));
+			return () => {
+				cancelled = true;
+				if (turnstileWidget.current && window.turnstile) {
+					window.turnstile.remove(turnstileWidget.current);
+					turnstileWidget.current = void 0;
+				}
+			};
+		}, [
+			open,
+			strings.feedback_turnstile_error,
+			turnstileSiteKey
+		]);
 		if (!open || !settings.feedback_form) return null;
 		const submit = async (event) => {
 			event.preventDefault();
 			setError(void 0);
 			setSending(true);
+			if (turnstileSiteKey && !turnstileToken) {
+				setError(strings.feedback_turnstile_error);
+				setSending(false);
+				return;
+			}
 			const formData = new FormData(event.currentTarget);
 			formData.set("action", settings.feedback_form.action);
 			formData.set("nonce", settings.feedback_form.nonce);
+			formData.set("cf-turnstile-response", turnstileToken);
 			formData.set("loaded_at", `${loadedAt}`);
 			formData.set("meeting_slug", meeting.slug);
 			formData.set("meeting_name", meeting.name);
@@ -27381,6 +27452,10 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 				if (!response.ok || !result.success) throw new Error(result.data?.message ?? strings.feedback_error);
 				setSent(true);
 			} catch (error) {
+				if (turnstileWidget.current && window.turnstile) {
+					window.turnstile.reset(turnstileWidget.current);
+					setTurnstileToken("");
+				}
 				setError(error instanceof Error ? error.message : strings.feedback_error);
 			} finally {
 				setSending(false);
@@ -27514,6 +27589,10 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 							name: "website",
 							tabIndex: -1
 						}),
+						turnstileSiteKey && /* @__PURE__ */ jsx("div", {
+							css: { minHeight: "65px" },
+							ref: turnstileContainer
+						}),
 						error && /* @__PURE__ */ jsx("p", {
 							css: { color: "var(--inactive)" },
 							children: error
@@ -27526,7 +27605,7 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 							},
 							children: [/* @__PURE__ */ jsx("button", {
 								css: [buttonCss, { flex: "1 1 12rem" }],
-								disabled: sending,
+								disabled: sending || !!turnstileSiteKey && !turnstileToken,
 								type: "submit",
 								children: sending ? strings.feedback_sending : strings.feedback_submit
 							}), /* @__PURE__ */ jsx("button", {

@@ -157,6 +157,15 @@ function tsml_ui($arguments = [])
         unset($defaults['distance']);
     }
 
+    $feedback_form = [
+        'action' => 'aa_canberra_meeting_feedback',
+        'endpoint' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('aa_canberra_meeting_feedback'),
+    ];
+    if (defined('CF_TURNSTILE_SITE_KEY') && CF_TURNSTILE_SITE_KEY) {
+        $feedback_form['turnstile_site_key'] = CF_TURNSTILE_SITE_KEY;
+    }
+
     // enqueue app script
     $local_js_path = plugin_dir_path(__FILE__) . '../assets/js/app.js';
     $js = defined('TSML_UI_PATH') ? TSML_UI_PATH : plugins_url('../assets/js/app.js', __FILE__);
@@ -185,11 +194,7 @@ function tsml_ui($arguments = [])
                     : [],
                 'distance_unit' => $tsml_distance_units,
                 'feedback_emails' => array_values($tsml_feedback_addresses),
-                'feedback_form' => [
-                    'action' => 'aa_canberra_meeting_feedback',
-                    'endpoint' => admin_url('admin-ajax.php'),
-                    'nonce' => wp_create_nonce('aa_canberra_meeting_feedback'),
-                ],
+                'feedback_form' => $feedback_form,
                 'feedback_public_origin' => defined('AA_CANBERRA_TSML_UI_FEEDBACK_PUBLIC_ORIGIN')
                     ? AA_CANBERRA_TSML_UI_FEEDBACK_PUBLIC_ORIGIN
                     : '',

@@ -29,6 +29,15 @@ This plugin is a local custom fork of Twelve Step Meeting List for AA Canberra u
 - Run `npm run build:tsml-ui:readable` from WSL when `assets/js/unminified_app.js` also needs refreshing.
 - `assets/js/unminified_app.js` is a readable generated bundle for audit/debugging only; edit `tools/tsml-ui/src` instead.
 
+## Meeting Feedback Form
+
+- Replaced TSML UI meeting feedback `mailto:` links with an in-page React modal form.
+- The form requires first name and initial, email address, message, and a verified meeting slug. Phone number is optional.
+- Feedback form submissions use the `aa_canberra_meeting_feedback` AJAX action and retain server-side recipient control through TSML feedback addresses or meeting-specific feed feedback emails.
+- Basic spam controls include a WordPress nonce, hidden honeypot field, mandatory form-open timestamp, real meeting validation, and transient rate limits by IP, email address, and IP plus meeting.
+- Cloudflare Turnstile is enabled automatically when `CF_TURNSTILE_SITE_KEY` and `CF_TURNSTILE_SECRET_KEY` constants are defined, such as in production `wp-config.php`.
+- The Turnstile site key is passed to the React app; the secret key is only used server-side for Cloudflare Siteverify.
+
 ## Meeting Admin Lock
 
 - Locked direct editing and creation of `tsml_meeting` posts in wp-admin because meetings are maintained by an external feed.

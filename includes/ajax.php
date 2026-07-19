@@ -211,6 +211,62 @@ add_action('wp_ajax_csv', function () {
 });
 
 // function: receives React TSML UI meeting feedback modal submissions, sends email to admins
+function aa_canberra_feedback_request_ip()
+{
+    if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+        return sanitize_text_field(wp_unslash($_SERVER['HTTP_CF_CONNECTING_IP']));
+    }
+
+    if (!empty($_SERVER['REMOTE_ADDR'])) {
+        return sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']));
+    }
+
+    return 'unknown';
+}
+
+function aa_canberra_feedback_rate_limit_check($bucket, $limit, $window)
+{
+    $key = 'aa_can_fb_' . md5($bucket);
+    $count = intval(get_transient($key));
+
+    if ($count >= $limit) {
+        return false;
+    }
+
+    set_transient($key, $count + 1, $window);
+    return true;
+}
+
+function aa_canberra_feedback_turnstile_verify($token, $remote_ip)
+{
+    $secret_key = defined('CF_TURNSTILE_SECRET_KEY') ? CF_TURNSTILE_SECRET_KEY : '';
+    $site_key = defined('CF_TURNSTILE_SITE_KEY') ? CF_TURNSTILE_SITE_KEY : '';
+
+    if (!$secret_key && !$site_key) {
+        return true;
+    }
+
+    if (!$secret_key || !$site_key || !$token) {
+        return false;
+    }
+
+    $response = wp_remote_post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
+        'timeout' => 10,
+        'body' => [
+            'secret' => $secret_key,
+            'response' => $token,
+            'remoteip' => $remote_ip,
+        ],
+    ]);
+
+    if (is_wp_error($response)) {
+        return false;
+    }
+
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+    return is_array($body) && !empty($body['success']);
+}
+
 add_action('wp_ajax_aa_canberra_meeting_feedback', 'aa_canberra_ajax_meeting_feedback');
 add_action('wp_ajax_nopriv_aa_canberra_meeting_feedback', 'aa_canberra_ajax_meeting_feedback');
 function aa_canberra_ajax_meeting_feedback()
@@ -221,13 +277,19 @@ function aa_canberra_ajax_meeting_feedback()
         wp_send_json_error(['message' => __('Security check failed. Please refresh the page and try again.', 'aa-canberra-meeting-list')], 403);
     }
 
-    $loaded_at = isset($_POST['loaded_at']) ? intval($_POST['loaded_at']) : 0;
-    if ($loaded_at && (time() - $loaded_at) < 3) {
-        wp_send_json_error(['message' => __('Please try again in a moment.', 'aa-canberra-meeting-list')], 429);
-    }
-
     if (!empty($_POST['website'])) {
         wp_send_json_success(['message' => __('Thank you for your feedback.', 'aa-canberra-meeting-list')]);
+    }
+
+    $remote_ip = aa_canberra_feedback_request_ip();
+    if (!aa_canberra_feedback_rate_limit_check('attempt:ip:' . $remote_ip, 12, 10 * MINUTE_IN_SECONDS)) {
+        wp_send_json_error(['message' => __('Please wait before sending another update request.', 'aa-canberra-meeting-list')], 429);
+    }
+
+    $loaded_at = isset($_POST['loaded_at']) ? intval($_POST['loaded_at']) : 0;
+    $elapsed = time() - $loaded_at;
+    if (!$loaded_at || $elapsed < 3 || $elapsed > HOUR_IN_SECONDS || $loaded_at > time() + MINUTE_IN_SECONDS) {
+        wp_send_json_error(['message' => __('Please refresh the page and try again.', 'aa-canberra-meeting-list')], 400);
     }
 
     $requester_name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
@@ -253,6 +315,23 @@ function aa_canberra_ajax_meeting_feedback()
     $meeting_post = get_page_by_path($meeting_slug, OBJECT, 'tsml_meeting');
     if (!$meeting_post && preg_match('/-\d$/', $meeting_slug)) {
         $meeting_post = get_page_by_path(preg_replace('/-\d$/', '', $meeting_slug), OBJECT, 'tsml_meeting');
+    }
+
+    if (!$meeting_post) {
+        wp_send_json_error(['message' => __('Meeting could not be verified. Please refresh the page and try again.', 'aa-canberra-meeting-list')], 400);
+    }
+
+    $turnstile_token = isset($_POST['cf-turnstile-response']) ? sanitize_text_field(wp_unslash($_POST['cf-turnstile-response'])) : '';
+    if (!aa_canberra_feedback_turnstile_verify($turnstile_token, $remote_ip)) {
+        wp_send_json_error(['message' => __('Security check failed. Please refresh the page and try again.', 'aa-canberra-meeting-list')], 403);
+    }
+
+    if (!aa_canberra_feedback_rate_limit_check('send:email:' . strtolower($requester_email), 3, HOUR_IN_SECONDS)) {
+        wp_send_json_error(['message' => __('Please wait before sending another update request.', 'aa-canberra-meeting-list')], 429);
+    }
+
+    if (!aa_canberra_feedback_rate_limit_check('send:ip_meeting:' . $remote_ip . ':' . $meeting_slug, 3, HOUR_IN_SECONDS)) {
+        wp_send_json_error(['message' => __('Please wait before sending another update request for this meeting.', 'aa-canberra-meeting-list')], 429);
     }
 
     if ($meeting_post) {
