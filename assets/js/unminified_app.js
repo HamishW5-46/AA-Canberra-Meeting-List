@@ -27398,10 +27398,12 @@ Please change the parent <Route path="${parentPath}"> to <Route path="${parentPa
 			loadTurnstileScript().then(() => {
 				if (cancelled || !turnstileContainer.current || !window.turnstile) return;
 				turnstileWidget.current = window.turnstile.render(turnstileContainer.current, {
-					callback: (token) => setTurnstileToken(token),
+					callback: (token) => {
+						setTurnstileToken(token);
+						setError(void 0);
+					},
 					"error-callback": () => {
 						setTurnstileToken("");
-						setError(strings.feedback_turnstile_error);
 					},
 					"expired-callback": () => setTurnstileToken(""),
 					sitekey: turnstileSiteKey,
