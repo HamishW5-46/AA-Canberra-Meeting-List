@@ -54,4 +54,5 @@ This plugin is a local custom fork of Twelve Step Meeting List for AA Canberra u
 - Feedback notification emails and TSML UI mailto links render meeting links under `https://meetings.aa.org.au/` instead of the local WordPress domain.
 - Removed the original TSML dashboard contribution/help widget.
 - Hardcoded removed settings to Alcoholics Anonymous, kilometres, public contact visibility, Australia/Sydney timezone, TSML UI, and automatic imports on.
+- Inactive imported meetings are filtered out before buffering, so feed-owned inactive records are not imported and existing feed-owned inactive records are removed on the next source sync.
 - Removed the manual CSV import, Example CSV, and Automatic Imports controls from the Import & Export screen.

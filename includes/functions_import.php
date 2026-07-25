@@ -739,6 +739,38 @@ function tsml_import_reformat_googlesheet($data)
 }
 
 /**
+ * Returns whether an imported meeting row should be excluded as inactive.
+ *
+ * @param array $meeting
+ * @return bool
+ */
+function tsml_import_meeting_is_inactive($meeting)
+{
+    if (!empty($meeting['attendance_option']) && 'inactive' === strtolower(trim($meeting['attendance_option']))) {
+        return true;
+    }
+
+    $types = empty($meeting['types']) ? [] : array_map('strtoupper', (array) $meeting['types']);
+    if (in_array('TC', $types, true) && !in_array('ONL', $types, true)) {
+        return true;
+    }
+
+    if (in_array('ONL', $types, true)) {
+        return false;
+    }
+
+    if (isset($meeting['approximate'])) {
+        if (is_bool($meeting['approximate'])) {
+            return $meeting['approximate'];
+        }
+
+        return in_array(strtolower(trim((string) $meeting['approximate'])), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    return false;
+}
+
+/**
  * return array of sanitized meetings
  * sanitizes imported meetings before processing
  * 
@@ -1083,6 +1115,11 @@ function tsml_import_sanitize_meetings($meetings, $data_source_url = null, $data
             }
         }
 
+        if (tsml_import_meeting_is_inactive($meetings[$i])) {
+            unset($meetings[$i]);
+            continue;
+        }
+
         // make sure we're not double-listing types
         $meetings[$i]['types'] = array_unique($meetings[$i]['types']);
 
@@ -1168,7 +1205,7 @@ function tsml_import_sanitize_meetings($meetings, $data_source_url = null, $data
         $meetings = array_filter($meetings, 'tsml_import_filter');
     }
 
-    return $meetings;
+    return array_values($meetings);
 }
 
 /**
