@@ -282,9 +282,6 @@ function aa_canberra_ajax_meeting_feedback()
     }
 
     $remote_ip = aa_canberra_feedback_request_ip();
-    if (!aa_canberra_feedback_rate_limit_check('attempt:ip:' . $remote_ip, 12, 10 * MINUTE_IN_SECONDS)) {
-        wp_send_json_error(['message' => __('Please wait before sending another update request.', 'aa-canberra-meeting-list')], 429);
-    }
 
     $loaded_at = isset($_POST['loaded_at']) ? intval($_POST['loaded_at']) : 0;
     $elapsed = time() - $loaded_at;
@@ -326,11 +323,11 @@ function aa_canberra_ajax_meeting_feedback()
         wp_send_json_error(['message' => __('Security check failed. Please refresh the page and try again.', 'aa-canberra-meeting-list')], 403);
     }
 
-    if (!aa_canberra_feedback_rate_limit_check('send:email:' . strtolower($requester_email), 3, HOUR_IN_SECONDS)) {
+    if (!aa_canberra_feedback_rate_limit_check('send:email:' . strtolower($requester_email), 6, HOUR_IN_SECONDS)) {
         wp_send_json_error(['message' => __('Please wait before sending another update request.', 'aa-canberra-meeting-list')], 429);
     }
 
-    if (!aa_canberra_feedback_rate_limit_check('send:ip_meeting:' . $remote_ip . ':' . $meeting_slug, 3, HOUR_IN_SECONDS)) {
+    if (!aa_canberra_feedback_rate_limit_check('send:ip_meeting:' . $remote_ip . ':' . $meeting_slug, 6, HOUR_IN_SECONDS)) {
         wp_send_json_error(['message' => __('Please wait before sending another update request for this meeting.', 'aa-canberra-meeting-list')], 429);
     }
 
