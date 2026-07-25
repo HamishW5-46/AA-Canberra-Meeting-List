@@ -355,9 +355,6 @@ function aa_canberra_ajax_meeting_feedback()
     }
 
     $to_email_addresses = $tsml_feedback_addresses;
-    if (!empty($meeting) && !empty($meeting->data_source) && !empty($meeting->feedback_emails)) {
-        $to_email_addresses = $meeting->feedback_emails;
-    }
     if (is_string($to_email_addresses)) {
         $to_email_addresses = explode(',', $to_email_addresses);
     }
@@ -442,11 +439,7 @@ function tsml_ajax_feedback()
         $message .= '<p>' . $key . ': ' . $value . '</p>';
     }
 
-    // if meeting was imported and has feedback_emails set, email them instead
     $to_email_addresses = $tsml_feedback_addresses;
-    if (!empty($meeting->data_source) && !empty($meeting->feedback_emails)) {
-        $to_email_addresses = $meeting->feedback_emails;
-    }
 
     // email vars
     if (!isset($_POST['tsml_nonce']) || !wp_verify_nonce($_POST['tsml_nonce'], $tsml_nonce)) {
