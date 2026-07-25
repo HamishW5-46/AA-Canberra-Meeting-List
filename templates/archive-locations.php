@@ -47,7 +47,7 @@ $schema = [
             '@type' => 'Event',
             'name' => $meeting['name'],
             'url' => @$meeting['url'],
-            'description' => tsml_meeting_types($meeting['types']),
+            'description' => tsml_meeting_types($meeting['types'] ?? []),
             "eventSchedule" => [
                 "@type" => "Schedule",
                 "repeatFrequency" => "P1W",
@@ -148,7 +148,7 @@ $schema = [
                     <td><?php echo esc_html($meeting['formatted_address'] ?? ''); ?></td>
                     <td><?php echo esc_html($meeting['region'] ?? ''); ?></td>
                     <td><?php echo esc_html($meeting['sub_region'] ?? ''); ?></td>
-                    <td><?php echo esc_html(tsml_meeting_types($meeting['types']) ?? ''); ?></td>
+                    <td><?php echo esc_html(tsml_meeting_types($meeting['types'] ?? []) ?? ''); ?></td>
                     <td><?php echo esc_html($meeting['latitude'] ?? ''); ?></td>
                     <td><?php echo esc_html($meeting['longitude'] ?? ''); ?></td>
                 </tr>

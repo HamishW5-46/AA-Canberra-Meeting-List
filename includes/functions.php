@@ -976,6 +976,9 @@ function tsml_meeting_types($types)
     if (empty($tsml_programs[$tsml_program]['types'])) {
         return;
     }
+    if (!is_array($types)) {
+        $types = [];
+    }
     $return = [];
     foreach ($types as $type) {
         if (array_key_exists($type, $tsml_programs[$tsml_program]['types'])) {
