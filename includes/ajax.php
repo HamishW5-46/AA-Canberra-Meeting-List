@@ -293,6 +293,7 @@ function aa_canberra_ajax_meeting_feedback()
     $requester_email = isset($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : '';
     $requester_phone = isset($_POST['phone']) ? sanitize_text_field(wp_unslash($_POST['phone'])) : '';
     $feedback_message = isset($_POST['message']) ? trim(tsml_sanitize_text_area(wp_unslash($_POST['message']))) : '';
+    $meeting_id = isset($_POST['meeting_id']) ? absint($_POST['meeting_id']) : 0;
     $meeting_slug = isset($_POST['meeting_slug']) ? sanitize_title(wp_unslash($_POST['meeting_slug'])) : '';
     $meeting_name = isset($_POST['meeting_name']) ? sanitize_text_field(wp_unslash($_POST['meeting_name'])) : '';
     $meeting_url = isset($_POST['meeting_url']) ? esc_url_raw(wp_unslash($_POST['meeting_url'])) : '';
@@ -301,7 +302,7 @@ function aa_canberra_ajax_meeting_feedback()
     $meeting_address = isset($_POST['meeting_address']) ? sanitize_text_field(wp_unslash($_POST['meeting_address'])) : '';
     $meeting_region = isset($_POST['meeting_region']) ? sanitize_text_field(wp_unslash($_POST['meeting_region'])) : '';
 
-    if (!$requester_name || !is_email($requester_email) || !$feedback_message || !$meeting_slug) {
+    if (!$requester_name || !is_email($requester_email) || !$feedback_message || !$meeting_id) {
         wp_send_json_error(['message' => __('Please complete the required fields.', 'aa-canberra-meeting-list')], 400);
     }
 
@@ -309,9 +310,9 @@ function aa_canberra_ajax_meeting_feedback()
         wp_send_json_error(['message' => __('One or more fields is too long.', 'aa-canberra-meeting-list')], 400);
     }
 
-    $meeting_post = get_page_by_path($meeting_slug, OBJECT, 'tsml_meeting');
-    if (!$meeting_post && preg_match('/-\d$/', $meeting_slug)) {
-        $meeting_post = get_page_by_path(preg_replace('/-\d$/', '', $meeting_slug), OBJECT, 'tsml_meeting');
+    $meeting_post = $meeting_id ? get_post($meeting_id) : null;
+    if ($meeting_post && ('tsml_meeting' !== $meeting_post->post_type || 'publish' !== $meeting_post->post_status)) {
+        $meeting_post = null;
     }
 
     if (!$meeting_post) {
