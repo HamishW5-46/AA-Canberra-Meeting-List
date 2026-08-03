@@ -243,9 +243,7 @@ add_filter('get_edit_post_link', 'tsml_meeting_admin_lock_edit_link', 999, 2);
 /**
  * Remove meeting-management links from the frontend WordPress admin bar.
  */
-/**
- * Remove meeting-management links from the frontend WordPress admin bar.
- */
+
 function tsml_meeting_admin_lock_admin_bar()
 {
     if (!tsml_meeting_admin_lock_enabled()) {
