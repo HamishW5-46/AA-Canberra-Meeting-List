@@ -240,44 +240,6 @@ function tsml_meeting_admin_lock_edit_link($link, $post)
 }
 add_filter('get_edit_post_link', 'tsml_meeting_admin_lock_edit_link', 999, 2);
 
-/**
- * Remove meeting-management links from the frontend WordPress admin bar.
- */
-
-function tsml_meeting_admin_lock_admin_bar()
-{
-    if (!tsml_meeting_admin_lock_enabled()) {
-        return;
-    }
-
-    global $wp_admin_bar;
-
-    if (!$wp_admin_bar instanceof WP_Admin_Bar) {
-        return;
-    }
-
-    // Remove Add > Meeting everywhere.
-    $wp_admin_bar->remove_node('new-tsml_meeting');
-
-    $queried_object = get_queried_object();
-
-    if (
-        $queried_object instanceof WP_Post &&
-        $queried_object->post_type === 'tsml_meeting'
-    ) {
-        // Remove WordPress core's Edit Meeting link.
-        $wp_admin_bar->remove_node('edit');
-
-        // Defensive removal of TSML UI's custom edit node.
-        $wp_admin_bar->remove_node('edit-meeting');
-    }
-}
-add_action(
-    'wp_before_admin_bar_render',
-    'tsml_meeting_admin_lock_admin_bar',
-    999
-);
-
 function tsml_meeting_admin_lock_remove_add_new_menu()
 {
     if (!tsml_meeting_admin_lock_enabled()) {
@@ -287,6 +249,27 @@ function tsml_meeting_admin_lock_remove_add_new_menu()
     remove_submenu_page('edit.php?post_type=tsml_meeting', 'post-new.php?post_type=tsml_meeting');
 }
 add_action('admin_menu', 'tsml_meeting_admin_lock_remove_add_new_menu', 999);
+
+/**
+ * Prevent meeting-management links appearing in the WordPress admin bar.
+ */
+function tsml_meeting_admin_lock_post_type_args($args, $post_type)
+{
+    if (
+        tsml_meeting_admin_lock_enabled() &&
+        $post_type === 'tsml_meeting'
+    ) {
+        $args['show_in_admin_bar'] = false;
+    }
+
+    return $args;
+}
+add_filter(
+    'register_post_type_args',
+    'tsml_meeting_admin_lock_post_type_args',
+    999,
+    2
+);
 
 function tsml_meeting_admin_lock_bulk_actions()
 {
