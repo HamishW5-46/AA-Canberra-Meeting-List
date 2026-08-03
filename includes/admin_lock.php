@@ -234,15 +234,21 @@ function tsml_admin_lock_term_edit_link($termlink, $term_id, $taxonomy)
 }
 add_filter('get_edit_term_link', 'tsml_admin_lock_term_edit_link', 20, 3);
 
-function tsml_meeting_admin_lock_edit_link($link, $post_id)
+function tsml_meeting_admin_lock_edit_link($link, $post)
 {
-    if (tsml_meeting_admin_lock_enabled() && get_post_type($post_id) === 'tsml_meeting') {
+    if (!tsml_meeting_admin_lock_enabled()) {
+        return $link;
+    }
+
+    $post = get_post($post);
+
+    if ($post instanceof WP_Post && $post->post_type === 'tsml_meeting') {
         return '';
     }
 
     return $link;
 }
-add_filter('get_edit_post_link', 'tsml_meeting_admin_lock_edit_link', 20, 2);
+add_filter('get_edit_post_link', 'tsml_meeting_admin_lock_edit_link', 999, 2);
 
 function tsml_meeting_admin_lock_bulk_actions()
 {
