@@ -134,16 +134,6 @@ function tsml_admin_lock_taxonomy_notice()
 }
 add_action('admin_notices', 'tsml_admin_lock_taxonomy_notice');
 
-function tsml_meeting_admin_lock_remove_add_new_menu()
-{
-    if (!tsml_meeting_admin_lock_enabled()) {
-        return;
-    }
-
-    remove_submenu_page('edit.php?post_type=tsml_meeting', 'post-new.php?post_type=tsml_meeting');
-}
-add_action('admin_menu', 'tsml_meeting_admin_lock_remove_add_new_menu', 999);
-
 function tsml_meeting_admin_lock_admin_css()
 {
     if (!tsml_meeting_admin_lock_enabled()) {
@@ -249,6 +239,44 @@ function tsml_meeting_admin_lock_edit_link($link, $post)
     return $link;
 }
 add_filter('get_edit_post_link', 'tsml_meeting_admin_lock_edit_link', 999, 2);
+
+/**
+ * Remove meeting-management links from the frontend WordPress admin bar.
+ */
+function tsml_meeting_admin_lock_admin_bar($wp_admin_bar)
+{
+    if (!tsml_meeting_admin_lock_enabled()) {
+        return;
+    }
+
+    // WordPress core's "Add > Meeting" item.
+    $wp_admin_bar->remove_node('new-tsml_meeting');
+
+    $queried_object = get_queried_object();
+
+    if (
+        $queried_object instanceof WP_Post &&
+        $queried_object->post_type === 'tsml_meeting'
+    ) {
+        // WordPress core's edit-current-post item.
+        $wp_admin_bar->remove_node('edit');
+    }
+}
+add_action(
+    'admin_bar_menu',
+    'tsml_meeting_admin_lock_admin_bar',
+    999
+);
+
+function tsml_meeting_admin_lock_remove_add_new_menu()
+{
+    if (!tsml_meeting_admin_lock_enabled()) {
+        return;
+    }
+
+    remove_submenu_page('edit.php?post_type=tsml_meeting', 'post-new.php?post_type=tsml_meeting');
+}
+add_action('admin_menu', 'tsml_meeting_admin_lock_remove_add_new_menu', 999);
 
 function tsml_meeting_admin_lock_bulk_actions()
 {
