@@ -62,6 +62,7 @@ include TSML_PATH . '/includes/functions_input.php';
 include TSML_PATH . '/includes/functions_log.php';
 include TSML_PATH . '/includes/functions_timezone.php';
 include TSML_PATH . '/includes/variables.php';
+include TSML_PATH . '/includes/admin_lock.php';
 
 // include public files
 include TSML_PATH . '/includes/ajax.php';
@@ -75,7 +76,6 @@ include TSML_PATH . '/includes/blocks.php';
 // include admin files
 if (is_admin()) {
     include TSML_PATH . '/includes/admin_import.php';
-    include TSML_PATH . '/includes/admin_lock.php';
     include TSML_PATH . '/includes/admin_lists.php';
     include TSML_PATH . '/includes/admin_log.php';
     include TSML_PATH . '/includes/admin_meeting.php';
