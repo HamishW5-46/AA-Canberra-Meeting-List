@@ -26,7 +26,9 @@ define('TSML_ALLOWED_HTML', [
     'td' => [],
     'tr' => []
 ]);
-
+if (!defined('TSML_GEOCODING_URL')) {
+    define('TSML_GEOCODING_URL', 'https://geo.code4recovery.org');
+}
 define('TSML_GROUP_CONTACT_COUNT', 3);
 define('TSML_MEETING_GUIDE_APP_NOTIFY', 'appsupport@aa.org');
 define('TSML_MEETINGS_PERMISSION', 'edit_posts');

@@ -191,10 +191,10 @@ $tsml_user_interface = 'tsml_ui';
 $tsml_auto_import = 'on';
 
 /*
-geocoding services are not always perfect. used by tsml_import() and admin.js
+unfortunately the google geocoding API is not always perfect. used by tsml_import() and admin.js
 find correct coordinates with http://nominatim.openstreetmap.org/ and https://www.latlong.net/
 */
-$tsml_geocoding_overrides = [
+$tsml_google_overrides = [
     '1114 Private Drive, Dixon, NM 87527, USA' => [
         'formatted_address' => '1114 Private Drive, Dixon, NM 87527, USA',
         'city' => 'Dixon',
@@ -1467,7 +1467,7 @@ function tsml_load_config()
         'data_error' => __('Got an improper response from the server, try refreshing the page.', '12-step-meeting-list'),
         'email_not_sent' => __('Email was not sent.', '12-step-meeting-list'),
         'loc_empty' => __('Enter a location in the field above.', '12-step-meeting-list'),
-        'loc_error' => __('The geocoding service could not find that location.', '12-step-meeting-list'),
+        'loc_error' => __('Google could not find that location.', '12-step-meeting-list'),
         'loc_thinking' => __('Looking up address…', '12-step-meeting-list'),
         'geo_error' => __('There was an error getting your location.', '12-step-meeting-list'),
         'geo_error_browser' => __('Your browser does not appear to support geolocation.', '12-step-meeting-list'),
