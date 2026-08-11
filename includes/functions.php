@@ -1,43 +1,6 @@
 <?php
 
 /**
- * "about this plugin" content
- * used: admin_menu.php and admin_settings.php
- * 
- * @return void
- */
-function tsml_about_message()
-{
-    tsml_assets();
-    ?>
-    <p>
-        <a href="https://code4recovery.org/" target="_blank" class="logo">
-            <img src="<?php echo esc_url(plugin_dir_url(__FILE__) . '../assets/img/code4recovery.svg') ?>"
-                alt="Code for Recovery">
-        </a>
-        <?php echo wp_kses(__('<strong>Code for Recovery</strong> is a nonprofit organization of volunteer members building technology services for recovery fellowships, such as A.A. and Al-Anon.', '12-step-meeting-list'), TSML_ALLOWED_HTML) ?>
-    </p>
-    <p>
-        <strong><?php esc_html_e('Support our mission with a recurring contribution!', '12-step-meeting-list') ?></strong>
-    </p>
-    <p>
-        <?php esc_html_e('Your donations help cover hosting fees, content delivery, geocoding, and other essential services that enable recovery communities to thrive. Every contribution makes a difference.', '12-step-meeting-list') ?>
-    </p>
-    <p>
-        <a href="https://wordpress.org/plugins/12-step-meeting-list/#faq-header" target="_blank" class="button">
-            <?php esc_html_e('View Documentation', '12-step-meeting-list') ?>
-        </a>
-        <a href="https://github.com/code4recovery/12-step-meeting-list/discussions" target="_blank" class="button">
-            <?php esc_html_e('Request Help', '12-step-meeting-list') ?>
-        </a>
-        <a href="https://code4recovery.org/contribute" target="_blank" class="button button-primary">
-            <?php esc_html_e('Contribute', '12-step-meeting-list') ?>
-        </a>
-    </p>
-    <?php
-}
-
-/**
  * render a list of meetings for a location or group
  * used: admin_meeting.php
  * 
@@ -429,8 +392,8 @@ function tsml_count_regions()
  */
 function tsml_custom_addresses($custom_overrides)
 {
-    global $tsml_google_overrides;
-    $tsml_google_overrides = array_merge((array) $tsml_google_overrides, (array) $custom_overrides);
+    global $tsml_geocoding_overrides;
+    $tsml_geocoding_overrides = array_merge((array) $tsml_geocoding_overrides, (array) $custom_overrides);
 }
 
 /**
@@ -761,28 +724,6 @@ function tsml_email($to, $subject, $message, $reply_to = false)
 }
 
 /**
- * display meeting list on home page (must be set to a static page)
- * used: by themes that want it, such as https://github.com/code4recovery/one-page-meeting-list
- * 
- * @param mixed $wp_query
- * @return void
- */
-function tsml_front_page($wp_query)
-{
-    if (is_admin()) {
-        return; //don't do this to inside pages
-    }
-    if ($wp_query->get('page_id') == get_option('page_on_front')) {
-        $wp_query->set('post_type', 'tsml_meeting');
-        $wp_query->set('page_id', '');
-        $wp_query->is_page = 0;
-        $wp_query->is_singular = 0;
-        $wp_query->is_post_type_archive = 1;
-        $wp_query->is_archive = 1;
-    }
-}
-
-/**
  * request accurate address information from google
  * used: tsml_ajax_import(), tsml_ajax_geocode()
  * 
@@ -791,17 +732,17 @@ function tsml_front_page($wp_query)
  */
 function tsml_geocode($address)
 {
-    global $tsml_google_overrides;
+    global $tsml_geocoding_overrides;
 
     $address = stripslashes($address);
 
     // check overrides first before anything
-    if (array_key_exists($address, $tsml_google_overrides)) {
-        if (empty($tsml_google_overrides[$address]['approximate'])) {
-            $tsml_google_overrides[$address]['approximate'] = 'no';
+    if (array_key_exists($address, $tsml_geocoding_overrides)) {
+        if (empty($tsml_geocoding_overrides[$address]['approximate'])) {
+            $tsml_geocoding_overrides[$address]['approximate'] = 'no';
         }
-        $tsml_google_overrides[$address]['status'] = 'override';
-        return $tsml_google_overrides[$address];
+        $tsml_geocoding_overrides[$address]['status'] = 'override';
+        return $tsml_geocoding_overrides[$address];
     }
 
     // check cache
@@ -813,7 +754,7 @@ function tsml_geocode($address)
         return $addresses[$address];
     }
 
-    $response = tsml_geocode_google($address);
+    $response = tsml_geocode_geoapify($address);
 
     // Return if the status is error
     if ($response['status'] == 'error') {
@@ -829,138 +770,369 @@ function tsml_geocode($address)
 }
 
 /**
- * call Google for geocoding of the address
- * 
- * @param mixed $address
- * @return mixed
+ * Geocode an address using Geoapify.
+ *
+ * @param mixed $address Address to geocode.
+ * @return array
  */
-function tsml_geocode_google($address)
+function tsml_geocode_geoapify($address)
 {
-    global $tsml_curl_handle, $tsml_language, $tsml_google_overrides, $tsml_bounds;
+    global $tsml_language, $tsml_geocoding_overrides, $tsml_bounds;
 
-    // Can't Geocode an empty address
-    if (empty($address)) {
+    // Can't geocode an empty address.
+    $address = is_string($address) ? trim($address) : '';
+
+    if ($address === '') {
         return [
             'status' => 'error',
-            'reason' => 'Addres string was empty',
+            'reason' => 'Address string was empty',
         ];
     }
 
-    // initialize curl handle if necessary
-    if (!$tsml_curl_handle) {
-        $tsml_curl_handle = curl_init();
-        curl_setopt_array($tsml_curl_handle, [
-            CURLOPT_HEADER => 0,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 60,
-            CURLOPT_SSL_VERIFYPEER => false,
-        ]);
+    if (!defined('TSML_GEOAPIFY_API_KEY') || empty(TSML_GEOAPIFY_API_KEY)) {
+        tsml_log('geocode_error', 'MISSING_API_KEY', $address);
+
+        return [
+            'status' => 'error',
+            'reason' => 'The Geoapify API key is not configured.',
+        ];
     }
 
-    // form geocoding request url
     $options = [
-        'application' => 'tsml',
-        'language' => $tsml_language,
-        'referrer' => tsml_meetings_url(),
-        'search' => $address,
+        'text'   => $address,
+        'format' => 'json',
+        'limit'  => 1,
+        'apiKey' => TSML_GEOAPIFY_API_KEY,
     ];
 
-    if (!empty($tsml_bounds) && is_array($tsml_bounds)) {
-        $options = array_merge($options, $tsml_bounds);
+    // Geoapify accepts a two-character language code.
+    if (!empty($tsml_language)) {
+        $options['lang'] = strtolower(substr($tsml_language, 0, 2));
     }
 
-    $url = TSML_GEOCODING_URL . '/api/geocode?' . http_build_query($options);
+    /*
+     * TSML's existing $tsml_bounds values are Google-specific, so don't pass
+     * them directly to Geoapify. They can be translated to Geoapify bias/filter
+     * parameters later if required.
+     */
 
-    // send request to google
-    curl_setopt($tsml_curl_handle, CURLOPT_URL, $url);
-    curl_setopt($tsml_curl_handle, CURLOPT_RETURNTRANSFER, true);
+    $url = add_query_arg(
+        $options,
+        'https://api.geoapify.com/v1/geocode/search'
+    );
 
-    $result = curl_exec($tsml_curl_handle);
+    $http_response = wp_remote_get(
+        $url,
+        [
+            'timeout'     => 60,
+            'redirection' => 3,
+        ]
+    );
 
-    // could not connect error
-    if ($result === false) {
-        $error = curl_error($tsml_curl_handle);
+    // Network or transport failure.
+    if (is_wp_error($http_response)) {
+        $error = $http_response->get_error_message();
+
         tsml_log('geocode_connection_error', $error, $address);
+
         return [
             'status' => 'error',
-            'reason' => 'Google could not validate the address <code>' . $address . '</code>. Response was <code>' . $error . '</code>',
+            'reason' => 'Geoapify could not validate the address <code>' .
+                esc_html($address) .
+                '</code>. Response was <code>' .
+                esc_html($error) .
+                '</code>',
         ];
     }
 
-    // decode result
-    $data = json_decode($result);
+    $http_status = (int) wp_remote_retrieve_response_code($http_response);
+    $body        = wp_remote_retrieve_body($http_response);
 
-    // if over query limit, wait two seconds and retry, or then exit
-    if ($data->status === 'OVER_QUERY_LIMIT') {
-        sleep(2);
-        $result = curl_exec($tsml_curl_handle);
+    // Invalid or missing API key.
+    if ($http_status === 401 || $http_status === 403) {
+        tsml_log('geocode_error', 'INVALID_API_KEY', $address);
 
-        // could not connect error
-        if ($result === false) {
-            return [
-                'status' => 'error',
-                'reason' => 'Google could not validate the address <code>' . $address . '</code>. Response was <code>' . curl_error($tsml_curl_handle) . '</code>',
-            ];
-        }
-
-        // decode result
-        $data = json_decode($result);
-
-        // if we're still over the limit, stop
-        if ($data->status === 'OVER_QUERY_LIMIT') {
-            tsml_log('geocode_error', 'OVER_QUERY_LIMIT', $address);
-            return [
-                'status' => 'error',
-                'reason' => 'We are over the rate limit for the Google Geocoding API.'
-            ];
-        }
+        return [
+            'status' => 'error',
+            'reason' => 'The Geoapify API key is invalid or is not authorised to use the Geocoding API.',
+        ];
     }
 
-    // if there are no results report it
-    if ($data->status === 'ZERO_RESULTS') {
+    // Rate limit reached.
+    if ($http_status === 429) {
+        tsml_log('geocode_error', 'RATE_LIMIT', $address);
+
+        return [
+            'status' => 'error',
+            'reason' => 'The Geoapify geocoding rate limit has been reached.',
+        ];
+    }
+
+    // Any other HTTP error.
+    if ($http_status < 200 || $http_status >= 300) {
+        tsml_log('geocode_error', 'HTTP_' . $http_status, $address);
+
+        return [
+            'status' => 'error',
+            'reason' => 'Geoapify returned HTTP ' .
+                $http_status .
+                ' while validating address <code>' .
+                esc_html($address) .
+                '</code>.',
+        ];
+    }
+
+    $data = json_decode($body);
+
+    // Invalid JSON response.
+    if (
+        json_last_error() !== JSON_ERROR_NONE ||
+        !is_object($data)
+    ) {
+        tsml_log(
+            'geocode_error',
+            'INVALID_JSON: ' . json_last_error_msg(),
+            $address
+        );
+
+        return [
+            'status' => 'error',
+            'reason' => 'Geoapify returned an invalid response for address <code>' .
+                esc_html($address) .
+                '</code>.',
+        ];
+    }
+
+    // No matching addresses.
+    if (
+        empty($data->results) ||
+        !is_array($data->results) ||
+        empty($data->results[0]) ||
+        !is_object($data->results[0])
+    ) {
         tsml_log('geocode_error', 'ZERO_RESULTS', $address);
+
         return [
             'status' => 'error',
-            'reason' => 'Google could not validate the address <code>' . $address . '</code>',
+            'reason' => 'Geoapify could not validate the address <code>' .
+                esc_html($address) .
+                '</code>.',
         ];
     }
 
-    // if result is otherwise bad, stop
-    if (($data->status !== 'OK') || empty($data->results[0]->formatted_address)) {
-        tsml_log('geocode_error', $data->status, $address);
+    $result = $data->results[0];
+
+    // Coordinates are mandatory for TSML.
+    if (!isset($result->lat, $result->lon)) {
+        tsml_log('geocode_error', 'MISSING_COORDINATES', $address);
+
         return [
             'status' => 'error',
-            'reason' => 'Google gave an unexpected response for address <code>' . $address . '</code>. Response was <pre>' . var_export($data, true) . '</pre>',
+            'reason' => 'Geoapify returned a result without coordinates for address <code>' .
+                esc_html($address) .
+                '</code>.',
         ];
     }
 
-    // check our overrides array again in case google is wrong
-    if (array_key_exists($data->results[0]->formatted_address, $tsml_google_overrides)) {
-        $response = $tsml_google_overrides[$data->results[0]->formatted_address];
-        if (empty($response['approximate'])) {
-            $response['approximate'] = 'no';
+    /*
+     * Determine the locality.
+     *
+     * Geoapify's field usage varies by datasource:
+     *
+     * OSM examples:
+     *   suburb = Holder
+     *   city   = District of Weston Creek
+     *
+     *   suburb = Bruce
+     *   city   = District of Belconnen
+     *
+     * OpenAddresses example:
+     *   city     = Braddon
+     *   district = Braddon
+     *
+     * Prefer suburb where available, then fall back to city and district.
+     */
+    $locality = '';
+
+    if (!empty($result->suburb)) {
+        $locality = trim((string) $result->suburb);
+    } elseif (!empty($result->city)) {
+        $locality = trim((string) $result->city);
+    } elseif (!empty($result->district)) {
+        $locality = trim((string) $result->district);
+    }
+
+    /*
+     * Determine the state/territory abbreviation.
+     *
+     * OpenAddresses commonly provides:
+     *   state_code = ACT
+     *
+     * OSM commonly provides:
+     *   iso3166_2 = AU-ACT
+     */
+    $state_code = '';
+
+    if (!empty($result->state_code)) {
+        $state_code = strtoupper(trim((string) $result->state_code));
+    } elseif (!empty($result->iso3166_2)) {
+        $iso_parts = explode('-', strtoupper((string) $result->iso3166_2), 2);
+
+        if (count($iso_parts) === 2) {
+            $state_code = trim($iso_parts[1]);
         }
-    } else {
-        tsml_log('geocode_success', $data->results[0]->formatted_address, $address);
-        // start building response
-        $response = [
-            'formatted_address' => $data->results[0]->formatted_address,
-            'latitude' => $data->results[0]->geometry->location->lat,
-            'longitude' => $data->results[0]->geometry->location->lng,
-            'approximate' => ($data->results[0]->geometry->location_type === 'APPROXIMATE') ? 'yes' : 'no',
-            'city' => null,
-            'status' => 'geocode',
-        ];
+    }
 
-        // get city, we might need it for the region, and we are going to cache it
-        foreach ($data->results[0]->address_components as $component) {
-            if (in_array('locality', $component->types)) {
-                $response['city'] = $component->short_name;
+    /*
+     * Build our own formatted address instead of using Geoapify's `formatted`
+     * field directly.
+     *
+     * Geoapify may prepend an OSM POI name, for example:
+     *
+     *   Grant Cameron Community Centre, 27 Mulley Street...
+     *   Qure, 21 Battye Street...
+     *
+     * TSML already stores the venue name separately, so the address itself
+     * should remain a stable postal-style street address.
+     */
+    $street_address = '';
+
+    if (!empty($result->housenumber)) {
+        $street_address .= trim((string) $result->housenumber);
+    }
+
+    if (!empty($result->street)) {
+        if ($street_address !== '') {
+            $street_address .= ' ';
+        }
+
+        $street_address .= trim((string) $result->street);
+    }
+
+    $address_parts = [];
+
+    if ($street_address !== '') {
+        $address_parts[] = $street_address;
+    }
+
+    $locality_line = $locality;
+
+    if ($state_code !== '') {
+        $locality_line .= ($locality_line !== '' ? ' ' : '') . $state_code;
+    }
+
+    if (!empty($result->postcode)) {
+        $locality_line .= ($locality_line !== '' ? ' ' : '') .
+            trim((string) $result->postcode);
+    }
+
+    if ($locality_line !== '') {
+        $address_parts[] = $locality_line;
+    }
+
+    if (!empty($result->country)) {
+        $address_parts[] = trim((string) $result->country);
+    }
+
+    $formatted_address = implode(', ', $address_parts);
+
+    /*
+     * If structured address components were unexpectedly incomplete, fall back
+     * to Geoapify's formatted result rather than returning a blank address.
+     */
+    if (
+        $formatted_address === '' &&
+        !empty($result->formatted)
+    ) {
+        $formatted_address = trim((string) $result->formatted);
+    }
+
+    if ($formatted_address === '') {
+        tsml_log('geocode_error', 'MISSING_FORMATTED_ADDRESS', $address);
+
+        return [
+            'status' => 'error',
+            'reason' => 'Geoapify returned a result without a usable address for <code>' .
+                esc_html($address) .
+                '</code>.',
+        ];
+    }
+
+    /*
+     * Preserve TSML's existing geocoding override behaviour.
+     *
+     * Check both our normalised address and Geoapify's original formatted
+     * address so existing overrides have the best chance of continuing to work.
+     */
+    $override_keys = [$formatted_address];
+
+    if (
+        !empty($result->formatted) &&
+        $result->formatted !== $formatted_address
+    ) {
+        $override_keys[] = trim((string) $result->formatted);
+    }
+
+    if (is_array($tsml_geocoding_overrides)) {
+        foreach ($override_keys as $override_key) {
+            if (array_key_exists($override_key, $tsml_geocoding_overrides)) {
+                $response = $tsml_geocoding_overrides[$override_key];
+
+                if (empty($response['approximate'])) {
+                    $response['approximate'] = 'no';
+                }
+
+                return $response;
             }
         }
     }
 
-    return $response;
+    /*
+     * Determine whether the result is approximate.
+     *
+     * Google previously supplied an explicit APPROXIMATE location type.
+     * Geoapify instead provides confidence scores.
+     *
+     * Require:
+     *   overall confidence >= 0.90
+     *
+     * and either:
+     *   building confidence >= 0.90
+     *   OR street confidence >= 0.90
+     *
+     * This prevents a confident city/suburb-only match being treated as an
+     * exact meeting location.
+     */
+    $confidence          = isset($result->rank->confidence)
+        ? (float) $result->rank->confidence
+        : 0.0;
+
+    $building_confidence = isset($result->rank->confidence_building_level)
+        ? (float) $result->rank->confidence_building_level
+        : 0.0;
+
+    $street_confidence   = isset($result->rank->confidence_street_level)
+        ? (float) $result->rank->confidence_street_level
+        : 0.0;
+
+    $approximate = (
+        $confidence >= 0.90 &&
+        (
+            $building_confidence >= 0.90 ||
+            $street_confidence >= 0.90
+        )
+    ) ? 'no' : 'yes';
+
+    tsml_log('geocode_success', $formatted_address, $address);
+
+    return [
+        'formatted_address' => $formatted_address,
+        'latitude'          => (float) $result->lat,
+        'longitude'         => (float) $result->lon,
+        'approximate'       => $approximate,
+        'city'              => $locality !== '' ? $locality : null,
+        'status'            => 'geocode',
+    ];
 }
 
 /**
@@ -1166,7 +1338,7 @@ function tsml_link_url($url, $exclude = '')
 
 /**
  * link to meetings page with parameters
- * used: admin_import.php, admin_settings.php, archive-meetings.php, init.php, widgets.php, tsml_geocode_google()
+ * used: admin_import.php, admin_settings.php, archive-meetings.php, init.php, widgets.php, tsml_geocode()
  * 
  * @param mixed $parameters
  * @return string
