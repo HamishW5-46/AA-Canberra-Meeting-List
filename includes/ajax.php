@@ -501,7 +501,7 @@ function tsml_ajax_geocode()
 // function: get a list of all the geocodes in the database
 // used: for debugging
 add_action('wp_ajax_tsml_geocodes', function () {
-    global $tsml_google_overrides;
+    global $tsml_geocoding_overrides;
 
     tsml_require_meetings_permission();
 
@@ -517,8 +517,8 @@ add_action('wp_ajax_tsml_geocodes', function () {
     }
 
     // include the google overrides
-    if (!empty($tsml_google_overrides)) {
-        $addresses = array_merge($addresses, $tsml_google_overrides);
+    if (!empty($tsml_geocoding_overrides)) {
+        $addresses = array_merge($addresses, $tsml_geocoding_overrides);
     }
 
     // add useful links
