@@ -267,6 +267,201 @@ function aa_canberra_feedback_turnstile_verify($token, $remote_ip)
     return is_array($body) && !empty($body['success']);
 }
 
+function aa_canberra_feedback_plain_text($value)
+{
+    $value = html_entity_decode((string) $value, ENT_QUOTES, get_bloginfo('charset'));
+    $value = wp_strip_all_tags($value);
+    $value = preg_replace('/[ \t]+/', ' ', $value);
+    $value = preg_replace('/\R[ \t]+/', "\n", $value);
+    return trim($value);
+}
+
+function aa_canberra_feedback_compare_text($value)
+{
+    $value = aa_canberra_feedback_plain_text($value);
+    return preg_replace('/\s+/', ' ', $value);
+}
+
+function aa_canberra_feedback_display_value($value, $strike = false, $strong = false)
+{
+    $value = aa_canberra_feedback_plain_text($value);
+    if ('' === $value) {
+        $value = __('Blank', 'aa-canberra-meeting-list');
+    }
+
+    $style = 'overflow-wrap:anywhere;';
+    if ($strike) {
+        $style .= 'color:#6b7280;text-decoration:line-through;';
+    }
+    if ($strong) {
+        $style .= 'font-weight:700;color:#111827;';
+    }
+
+    return '<span style="' . esc_attr($style) . '">' . nl2br(esc_html($value)) . '</span>';
+}
+
+function aa_canberra_feedback_time_label($meeting)
+{
+    if (empty($meeting->time)) {
+        return __('Appointment', '12-step-meeting-list');
+    }
+
+    $time = tsml_format_time($meeting->time);
+    if (!empty($meeting->end_time)) {
+        $time .= ' - ' . tsml_format_time($meeting->end_time);
+    }
+
+    return $time;
+}
+
+function aa_canberra_feedback_change_fields($meeting)
+{
+    return [
+        'name' => [
+            'label' => __('Meeting name', 'aa-canberra-meeting-list'),
+            'current' => $meeting->post_title ?? '',
+            'multiline' => false,
+        ],
+        'time' => [
+            'label' => __('Time', '12-step-meeting-list'),
+            'current' => aa_canberra_feedback_time_label($meeting),
+            'multiline' => false,
+        ],
+        'location' => [
+            'label' => __('Location / Group', '12-step-meeting-list'),
+            'current' => !empty($meeting->location) ? $meeting->location : ($meeting->group ?? ''),
+            'multiline' => false,
+        ],
+        'address' => [
+            'label' => __('Address / Platform', '12-step-meeting-list'),
+            'current' => $meeting->formatted_address ?? '',
+            'multiline' => false,
+        ],
+        'region' => [
+            'label' => __('Region', '12-step-meeting-list'),
+            'current' => $meeting->region ?? '',
+            'multiline' => false,
+        ],
+        'phone' => [
+            'label' => __('Phone', '12-step-meeting-list'),
+            'current' => $meeting->phone ?? '',
+            'multiline' => false,
+        ],
+        'email' => [
+            'label' => __('Email', '12-step-meeting-list'),
+            'current' => $meeting->email ?? '',
+            'multiline' => false,
+        ],
+        'website' => [
+            'label' => __('Website', '12-step-meeting-list'),
+            'current' => $meeting->website ?? '',
+            'multiline' => false,
+        ],
+        'conference_url' => [
+            'label' => __('Online meeting link', 'aa-canberra-meeting-list'),
+            'current' => $meeting->conference_url ?? '',
+            'multiline' => false,
+        ],
+        'notes' => [
+            'label' => __('Notes', '12-step-meeting-list'),
+            'current' => $meeting->notes ?? '',
+            'multiline' => true,
+        ],
+    ];
+}
+
+function aa_canberra_feedback_suggested_changes($meeting, $posted_changes)
+{
+    if (!is_array($posted_changes)) {
+        return [];
+    }
+
+    $posted_changes = wp_unslash($posted_changes);
+    $fields = aa_canberra_feedback_change_fields($meeting);
+    $changes = [];
+
+    foreach ($fields as $key => $field) {
+        if (!array_key_exists($key, $posted_changes) || is_array($posted_changes[$key])) {
+            continue;
+        }
+
+        $proposed = $field['multiline']
+            ? trim(tsml_sanitize_text_area($posted_changes[$key]))
+            : trim(sanitize_text_field($posted_changes[$key]));
+        $current = aa_canberra_feedback_plain_text($field['current']);
+
+        if (strlen($proposed) > 2000) {
+            $proposed = substr($proposed, 0, 2000);
+        }
+
+        if (aa_canberra_feedback_compare_text($current) === aa_canberra_feedback_compare_text($proposed)) {
+            continue;
+        }
+
+        $changes[] = [
+            'label' => $field['label'],
+            'current' => $current,
+            'proposed' => $proposed,
+        ];
+    }
+
+    return $changes;
+}
+
+function aa_canberra_feedback_render_heading($heading)
+{
+    return '<p style="margin:24px 0 8px;color:#111827;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">' . esc_html($heading) . '</p>';
+}
+
+function aa_canberra_feedback_render_details_table($rows)
+{
+    $rows = array_filter($rows, function ($row) {
+        return '' !== aa_canberra_feedback_plain_text($row['value']);
+    });
+
+    if (!$rows) {
+        return '';
+    }
+
+    $html = '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 8px;width:100%;">';
+    foreach ($rows as $row) {
+        $html .= '<tr>';
+        $html .= '<td style="border-top:1px solid #e5e7eb;color:#6b7280;font-size:13px;font-weight:700;padding:9px 12px 9px 0;vertical-align:top;width:150px;">' . esc_html($row['label']) . '</td>';
+        $html .= '<td style="border-top:1px solid #e5e7eb;color:#374151;font-size:14px;line-height:1.5;padding:9px 0;vertical-align:top;">' . $row['value'] . '</td>';
+        $html .= '</tr>';
+    }
+    $html .= '</table>';
+
+    return $html;
+}
+
+function aa_canberra_feedback_render_changes_table($changes)
+{
+    if (!$changes) {
+        return '';
+    }
+
+    $html = aa_canberra_feedback_render_heading(__('Suggested changes', 'aa-canberra-meeting-list'));
+    $html .= '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 8px;width:100%;">';
+    $html .= '<tr>';
+    $html .= '<th align="left" style="background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;font-size:12px;padding:8px;vertical-align:top;width:120px;">' . esc_html__('Field', 'aa-canberra-meeting-list') . '</th>';
+    $html .= '<th align="left" style="background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;font-size:12px;padding:8px;vertical-align:top;">' . esc_html__('Current', 'aa-canberra-meeting-list') . '</th>';
+    $html .= '<th align="left" style="background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;font-size:12px;padding:8px;vertical-align:top;">' . esc_html__('Proposed', 'aa-canberra-meeting-list') . '</th>';
+    $html .= '</tr>';
+
+    foreach ($changes as $change) {
+        $html .= '<tr>';
+        $html .= '<td style="border:1px solid #e5e7eb;color:#374151;font-size:13px;font-weight:700;padding:8px;vertical-align:top;width:120px;">' . esc_html($change['label']) . '</td>';
+        $html .= '<td style="border:1px solid #e5e7eb;font-size:14px;line-height:1.5;padding:8px;vertical-align:top;">' . aa_canberra_feedback_display_value($change['current'], true, false) . '</td>';
+        $html .= '<td style="border:1px solid #e5e7eb;font-size:14px;line-height:1.5;padding:8px;vertical-align:top;">' . aa_canberra_feedback_display_value($change['proposed'], false, true) . '</td>';
+        $html .= '</tr>';
+    }
+
+    $html .= '</table>';
+
+    return $html;
+}
+
 add_action('wp_ajax_aa_canberra_meeting_feedback', 'aa_canberra_ajax_meeting_feedback');
 add_action('wp_ajax_nopriv_aa_canberra_meeting_feedback', 'aa_canberra_ajax_meeting_feedback');
 function aa_canberra_ajax_meeting_feedback()
@@ -332,6 +527,7 @@ function aa_canberra_ajax_meeting_feedback()
         wp_send_json_error(['message' => __('Please wait before sending another update request for this meeting.', 'aa-canberra-meeting-list')], 429);
     }
 
+    $meeting = null;
     if ($meeting_post) {
         $meeting = tsml_get_meeting($meeting_post->ID);
         if (!$meeting_name) {
@@ -365,21 +561,56 @@ function aa_canberra_ajax_meeting_feedback()
         wp_send_json_error(['message' => __('Feedback is not configured. Please contact the site administrator.', 'aa-canberra-meeting-list')], 500);
     }
 
-    $message = '<p style="padding-bottom: 20px; border-bottom: 2px dashed #ccc; margin-bottom: 20px;">' . nl2br(esc_html($feedback_message)) . '</p>';
-    $message_lines = [
-        __('Requested By', '12-step-meeting-list') => esc_html($requester_name) . ' &lt;<a href="mailto:' . esc_attr($requester_email) . '">' . esc_html($requester_email) . '</a>&gt;',
-        __('Phone', '12-step-meeting-list') => $requester_phone ? esc_html($requester_phone) : '',
-        __('Meeting', '12-step-meeting-list') => $meeting_url ? '<a href="' . esc_url($meeting_url) . '">' . esc_html($meeting_name) . '</a>' : esc_html($meeting_name),
-        __('When', '12-step-meeting-list') => esc_html($meeting_time),
-        __('Location', '12-step-meeting-list') => esc_html($meeting_location),
-        __('Address', '12-step-meeting-list') => esc_html($meeting_address),
-        __('Region', '12-step-meeting-list') => esc_html($meeting_region),
-        __('Slug', 'aa-canberra-meeting-list') => esc_html($meeting_slug),
-    ];
+    $posted_changes = isset($_POST['feedback_changes']) ? $_POST['feedback_changes'] : [];
+    $suggested_changes = $meeting ? aa_canberra_feedback_suggested_changes($meeting, $posted_changes) : [];
 
-    foreach (array_filter($message_lines) as $key => $value) {
-        $message .= '<p>' . esc_html($key) . ': ' . $value . '</p>';
-    }
+    $message = aa_canberra_feedback_render_heading(__('Comments', 'aa-canberra-meeting-list'));
+    $message .= '<p style="background:#f9fafb;border:1px solid #e5e7eb;margin:0 0 8px;padding:12px;">' . nl2br(esc_html($feedback_message)) . '</p>';
+    $message .= aa_canberra_feedback_render_changes_table($suggested_changes);
+
+    $message .= aa_canberra_feedback_render_heading(__('Meeting', '12-step-meeting-list'));
+    $message .= aa_canberra_feedback_render_details_table([
+        [
+            'label' => __('Meeting', '12-step-meeting-list'),
+            'value' => $meeting_url ? '<a href="' . esc_url($meeting_url) . '">' . esc_html($meeting_name) . '</a>' : esc_html($meeting_name),
+        ],
+        [
+            'label' => __('When', '12-step-meeting-list'),
+            'value' => esc_html($meeting_time),
+        ],
+        [
+            'label' => __('Location', '12-step-meeting-list'),
+            'value' => esc_html($meeting_location),
+        ],
+        [
+            'label' => __('Address', '12-step-meeting-list'),
+            'value' => esc_html($meeting_address),
+        ],
+        [
+            'label' => __('Region', '12-step-meeting-list'),
+            'value' => esc_html($meeting_region),
+        ],
+        [
+            'label' => __('Slug', 'aa-canberra-meeting-list'),
+            'value' => esc_html($meeting_slug),
+        ],
+    ]);
+
+    $message .= aa_canberra_feedback_render_heading(__('Submitted by', 'aa-canberra-meeting-list'));
+    $message .= aa_canberra_feedback_render_details_table([
+        [
+            'label' => __('Name', '12-step-meeting-list'),
+            'value' => esc_html($requester_name),
+        ],
+        [
+            'label' => __('Email', '12-step-meeting-list'),
+            'value' => '<a href="mailto:' . esc_attr($requester_email) . '">' . esc_html($requester_email) . '</a>',
+        ],
+        [
+            'label' => __('Phone', '12-step-meeting-list'),
+            'value' => esc_html($requester_phone),
+        ],
+    ]);
 
     $subject = __('Meeting Feedback Form', '12-step-meeting-list') . ': ' . ($meeting_name ?: $meeting_slug);
     if (tsml_email($to_email_addresses, $subject, $message, $requester_name . ' <' . $requester_email . '>')) {
