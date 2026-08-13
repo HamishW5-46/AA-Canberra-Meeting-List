@@ -384,7 +384,7 @@ function tsml_count_regions()
 }
 
 /**
- * add local overrides to google (this may someday be removed)
+ * add local overrides for geocoding addresses
  * used: in user themes
  * 
  * @param mixed $custom_overrides
@@ -860,7 +860,7 @@ function tsml_email( $to, $subject, $message, $reply_to = false ) {
 }
 
 /**
- * request accurate address information from google
+ * request accurate address information from Geoapify
  * used: tsml_ajax_import(), tsml_ajax_geocode()
  * 
  * @param mixed $address
@@ -945,12 +945,6 @@ function tsml_geocode_geoapify($address)
     if (!empty($tsml_language)) {
         $options['lang'] = strtolower(substr($tsml_language, 0, 2));
     }
-
-    /*
-     * TSML's existing $tsml_bounds values are Google-specific, so don't pass
-     * them directly to Geoapify. They can be translated to Geoapify bias/filter
-     * parameters later if required.
-     */
 
     $url = add_query_arg(
         $options,
@@ -1079,9 +1073,6 @@ function tsml_geocode_geoapify($address)
      *   suburb = Holder
      *   city   = District of Weston Creek
      *
-     *   suburb = Bruce
-     *   city   = District of Belconnen
-     *
      * OpenAddresses example:
      *   city     = Braddon
      *   district = Braddon
@@ -1126,7 +1117,6 @@ function tsml_geocode_geoapify($address)
      * Geoapify may prepend an OSM POI name, for example:
      *
      *   Grant Cameron Community Centre, 27 Mulley Street...
-     *   Qure, 21 Battye Street...
      *
      * TSML already stores the venue name separately, so the address itself
      * should remain a stable postal-style street address.
