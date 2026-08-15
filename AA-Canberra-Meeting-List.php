@@ -61,6 +61,9 @@ include TSML_PATH . '/includes/functions_log.php';
 include TSML_PATH . '/includes/functions_timezone.php';
 include TSML_PATH . '/includes/variables.php';
 include TSML_PATH . '/includes/admin_lock.php';
+include TSML_PATH . '/includes/feedback.php';
+include TSML_PATH . '/includes/feedback-gso.php';
+include TSML_PATH . '/includes/feedback-email.php';
 
 // include public files
 include TSML_PATH . '/includes/ajax.php';

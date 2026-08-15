@@ -37,6 +37,7 @@ This plugin is a local custom fork of Twelve Step Meeting List for AA Canberra u
 - Basic spam controls include a WordPress nonce, hidden honeypot field, mandatory form-open timestamp, real meeting validation, and transient send rate limits by email address and IP plus meeting.
 - Cloudflare Turnstile is enabled automatically when `CF_TURNSTILE_SITE_KEY` and `CF_TURNSTILE_SECRET_KEY` constants are defined, such as in production `wp-config.php`.
 - The Turnstile site key is passed to the React app; the secret key is only used server-side for Cloudflare Siteverify.
+- Canberra feedback emails include the result of forwarding the serialized comments and suggested changes to the GSO `tsml_feedback` endpoint. The GSO handoff is isolated in `includes/feedback-gso.php` behind `aac_gso_submit_feedback($meeting, $submission, $changes)`, returning a structured result object for email rendering. `AA_CANBERRA_GSO_FEEDBACK_MODE` supports `mock_success`, `mock_failure`, `mock_nonce_retry`, and `live`; all environments default to mock success, while live mode is allowed only in production unless `AA_CANBERRA_GSO_FEEDBACK_LIVE_ALLOWED` is true.
 
 ## Meeting Admin Lock
 

@@ -269,11 +269,7 @@ function aa_canberra_feedback_turnstile_verify($token, $remote_ip)
 
 function aa_canberra_feedback_plain_text($value)
 {
-    $value = html_entity_decode((string) $value, ENT_QUOTES, get_bloginfo('charset'));
-    $value = wp_strip_all_tags($value);
-    $value = preg_replace('/[ \t]+/', ' ', $value);
-    $value = preg_replace('/\R[ \t]+/', "\n", $value);
-    return trim($value);
+    return aac_feedback_plain_text($value);
 }
 
 function aa_canberra_feedback_compare_text($value)
@@ -410,7 +406,7 @@ function aa_canberra_feedback_suggested_changes($meeting, $posted_changes)
 
 function aa_canberra_feedback_render_heading($heading)
 {
-    return '<p style="margin:24px 0 8px;color:#111827;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">' . esc_html($heading) . '</p>';
+    return aac_feedback_render_heading($heading);
 }
 
 function aa_canberra_feedback_render_details_table($rows)
@@ -563,6 +559,20 @@ function aa_canberra_ajax_meeting_feedback()
 
     $posted_changes = isset($_POST['feedback_changes']) ? $_POST['feedback_changes'] : [];
     $suggested_changes = $meeting ? aa_canberra_feedback_suggested_changes($meeting, $posted_changes) : [];
+    $submission = [
+        'message' => $feedback_message,
+        'name' => $requester_name,
+        'email' => $requester_email,
+        'phone' => $requester_phone,
+        'meeting_name' => $meeting_name,
+        'meeting_url' => $meeting_url,
+        'meeting_time' => $meeting_time,
+        'meeting_location' => $meeting_location,
+        'meeting_address' => $meeting_address,
+        'meeting_region' => $meeting_region,
+        'meeting_slug' => $meeting_slug,
+    ];
+    $gso_result = aac_gso_submit_feedback($meeting, $submission, $suggested_changes);
 
     $message = aa_canberra_feedback_render_heading(__('Comments', 'aa-canberra-meeting-list'));
     $message .= '<p style="background:#f9fafb;border:1px solid #e5e7eb;margin:0 0 8px;padding:12px;">' . nl2br(esc_html($feedback_message)) . '</p>';
@@ -611,6 +621,7 @@ function aa_canberra_ajax_meeting_feedback()
             'value' => esc_html($requester_phone),
         ],
     ]);
+    $message .= aac_feedback_render_gso_status($gso_result);
 
     $subject = __('Meeting Feedback Form', '12-step-meeting-list') . ': ' . ($meeting_name ?: $meeting_slug);
     if (tsml_email($to_email_addresses, $subject, $message, $requester_name . ' <' . $requester_email . '>')) {
